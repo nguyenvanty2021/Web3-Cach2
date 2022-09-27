@@ -16,6 +16,12 @@ const SimpleStorage = () => {
   const [signer, setSigner] = useState(null);
   const [contract, setContract] = useState(null);
   const [transferHash, setTransferHash] = useState();
+  const getBalance2 = async (address) => {
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const balance = await provider.getBalance(address);
+    const balanceInEth = ethers.utils.formatEther(balance);
+    console.log(balanceInEth);
+  };
   const getBalance = (address) => {
     window.ethereum
       .request({
@@ -24,7 +30,7 @@ const SimpleStorage = () => {
       })
       .then((balance) => {
         console.log(balance);
-		// (balance/1e18).toFixed(4)
+        // (balance/1e18).toFixed(4)
         setDefaultBalance(ethers.utils.formatEther(balance));
       });
   };
@@ -39,8 +45,8 @@ const SimpleStorage = () => {
         const result = await window.ethereum.request({
           method: "eth_requestAccounts",
         });
-		// const web3 = new Web3(window.ethereum)
-		// console.log(web3)
+        // const web3 = new Web3(window.ethereum)
+        // console.log(web3)
         // sau khi connect sẽ có address
         if (result.length > 0) {
           accountChangedHandler(result[0]);
@@ -60,6 +66,11 @@ const SimpleStorage = () => {
     await getBalance(newAccount.toString());
     await setDefaultAccount(newAccount);
     updateEthers();
+    const web3 = new Web3(window.ethereum);
+    // get balance
+    var balance = await web3.eth.getBalance(newAccount); //Will give value in.
+    console.log(balance);
+    // balance = web3.toDecimal(balance);
   };
   const chainChangedHandler = () => {
     // reload the page to avoid any errors with chain change mid use of application
@@ -74,14 +85,14 @@ const SimpleStorage = () => {
     setProvider(tempProvider);
     let tempSigner = tempProvider.getSigner();
     setSigner(tempSigner);
-	const tx = await tempSigner.sendTransaction({
-		to: '0x12e985b8FFEaE9cd153D22461027fb1151a6D13d',
-		value: ethers.utils.parseEther('0.005')
-	})
-	console.log([tx])
-	console.log(ethers.utils.formatEther(tx?.gasLimit?._hex))
-	console.log(ethers.utils.formatEther(tx?.gasPrice?._hex))
-	console.log(ethers.utils.formatEther(tx?.value?._hex))
+    const tx = await tempSigner.sendTransaction({
+      to: "0x12e985b8FFEaE9cd153D22461027fb1151a6D13d",
+      value: ethers.utils.parseEther("0.005"),
+    });
+    console.log([tx]);
+    console.log(ethers.utils.formatEther(tx?.gasLimit?._hex));
+    console.log(ethers.utils.formatEther(tx?.gasPrice?._hex));
+    console.log(ethers.utils.formatEther(tx?.value?._hex));
     let tempContract = new ethers.Contract(
       contractAddress,
       SimpleStorage_abi,
@@ -89,7 +100,7 @@ const SimpleStorage = () => {
     );
     setContract(tempContract);
   };
-  console.log(contract)
+  console.log(contract);
   const setHandler = (event) => {
     event.preventDefault();
     console.log("sending " + event.target.setText.value + " to the contract");
@@ -99,6 +110,71 @@ const SimpleStorage = () => {
     let val = await contract.get();
     setCurrentContractVal(val);
   };
+  // const handleInit = async () => {
+  //   const web3 = new Web3('http://localhost:3000/')
+  //   // tạo ra đối tượng contract
+  //   const constract = await new web3.eth.Contract(SimpleStorage_abi, '0x12e985b8FFEaE9cd153D22461027fb1151a6D13d')
+  //   console.log(constract)
+  //   const name = await constract.methods.name().call()
+  //   console.log(name)
+  // }
+  // useEffect(() => {
+  //   handleInit()
+  // })
+  const handleChangeTransaction2 = async () => {
+    const web3 = new Web3(window.ethereum);
+    web3.eth.getAccounts(function(error, result) {
+      web3.eth.sendTransaction(
+          {from: defaultAccount,
+          to: '0x12e985b8FFEaE9cd153D22461027fb1151a6D13d',
+          value:   ethers.utils.parseEther("0.000005"),
+          data: "0x06cb4bcd"
+              }, function(err, transactionHash) {
+        if (!err)
+          console.log(transactionHash);
+      });
+  });
+  };
+  const handleChangeTransaction = async () => {
+    if (
+      window.ethereum &&
+      window.ethereum.isMetaMask &&
+      typeof window !== "undefined" &&
+      typeof window.ethereum !== "undefined"
+    ) {
+      try {
+        const result = await window.ethereum.request({
+          method: "eth_sendTransaction",
+          params: [
+            {
+              from: "0x63b51efd87c47415aa3efaf46331ce71fa831390",
+              to: "0x12e985b8FFEaE9cd153D22461027fb1151a6D13d",
+              gas: "0x5208", // 21000 GWEI,
+              value: ethers.utils.parseEther("0.0005")._hex,
+            },
+          ],
+        });
+        console.log(result);
+      } catch (error) {
+        setErrorMessage(error.message);
+      }
+    } else {
+      console.log("Need to install MetaMask");
+      setErrorMessage("Please install MetaMask browser extension to interact");
+    }
+  };
+  const checkIfWalletIsConnected = async () => {
+    if (!window.ethereum) {
+      return alert("Please install metamask");
+    }
+    const accounts = await window.ethereum.request({
+      method: "eth_accounts",
+    });
+    console.log(accounts);
+  };
+  useEffect(() => {
+    checkIfWalletIsConnected();
+  }, []);
   return (
     <div>
       <h4> {"Get/Set Contract interaction"} </h4>
@@ -119,6 +195,8 @@ const SimpleStorage = () => {
           Get Current Contract Value{" "}
         </button>
       </div>
+      <button onClick={handleChangeTransaction}> Send transaction </button>
+      <button onClick={handleChangeTransaction2}> Send transaction2 </button>
       {currentContractVal}
       {errorMessage}
     </div>
