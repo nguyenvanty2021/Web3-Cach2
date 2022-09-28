@@ -2,8 +2,12 @@
 import React, { useState } from "react";
 import { ethers } from "ethers";
 import SimpleStorage_abi from "./contracts/SimpleStorage_abi.json";
+import Faucet from "./contracts/Faucet.json";
+import contract1 from "./contracts/contract1.json";
+import contract2 from "./contracts/contract2.json";
 import { useEffect } from "react/cjs/react.development";
 import Web3 from "web3";
+import detectEthereumProvider from "@metamask/detect-provider";
 const SimpleStorage = () => {
   // deploy simple storage contract and paste deployed contract address here. This value is local ganache chain
   let contractAddress = "0xCF31E7c9E7854D7Ecd3F3151a9979BC2a82B4fe3";
@@ -68,7 +72,7 @@ const SimpleStorage = () => {
     updateEthers();
     const web3 = new Web3(window.ethereum);
     // get balance
-    var balance = await web3.eth.getBalance(newAccount); //Will give value in.
+    var balance = await web3.eth.getBalance('0x63b51efd87c47415aa3efaf46331ce71fa831390'); //Will give value in.
     console.log(balance);
     // balance = web3.toDecimal(balance);
   };
@@ -103,12 +107,14 @@ const SimpleStorage = () => {
   console.log(contract);
   const setHandler = (event) => {
     event.preventDefault();
+    console.log(contract);
     console.log("sending " + event.target.setText.value + " to the contract");
     contract.set(event.target.setText.value);
   };
   const getCurrentVal = async () => {
     let val = await contract.get();
-    setCurrentContractVal(val);
+    console.log(val)
+   // setCurrentContractVal(val);
   };
   // const handleInit = async () => {
   //   const web3 = new Web3('http://localhost:3000/')
@@ -121,6 +127,7 @@ const SimpleStorage = () => {
   // useEffect(() => {
   //   handleInit()
   // })
+  console.log(window.ethereum)
   const handleChangeTransaction2 = async () => {
     const web3 = new Web3(window.ethereum);
     web3.eth.getAccounts(function(error, result) {
@@ -172,7 +179,97 @@ const SimpleStorage = () => {
     });
     console.log(accounts);
   };
+  const handleTestWeb3 = async () => {
+    const web3 = new Web3(window.ethereum);
+    const res = await web3.eth.getAccounts()
+    console.log(res)
+  }
+  const handleTestWeb3VS2 = async () => {
+    const web3 = new Web3(window.ethereum)
+    const contract = await new web3.eth.Contract(contract1, '0x63b51efd87c47415aa3efaf46331ce71fa831390')
+    console.log(contract)
+    const manager = await contract.methods.manager()
+    console.log(manager)
+  }
+  const [web3Api, setWeb3Api] = useState({
+    provider: null,
+    web3: null,
+    contract: null,
+    isProviderLoaded: false
+  })
+  const handleOnchangeAccount = (provider) => {
+    // chỗ này dùng window.location.reload để load lại page cập nhật address+balance (cùi bắp)
+    provider.on('accountsChanged', (accounts) => {
+      console.log(accounts)
+    })
+    // provider.on("accountsChanged", _ => window.location.reload())
+    provider.on("chainChanged", _ => window.location.reload())
+    // provider._jsonRpcConnection.events.on('notification', payload => {
+    //   const {method} = payload
+    //   if(method === 'metamask_unlockStateChanged') {
+    //     alert('123')
+    //   }
+    // })
+  }
+  const handleTestWeb3VS3 = async () => {
+    // let provider = null
+    let provider = await detectEthereumProvider()
+    if(provider) {
+      handleOnchangeAccount(provider)
+      setWeb3Api({
+        web3: new Web3(provider),
+        provider,
+        contract: Faucet,
+        isProviderLoaded: true
+      })
+    } else {
+      setWeb3Api({...web3Api, isProviderLoaded: true})
+      console.error('Please, install Metamask.')
+    }
+    // if(window.ethereum) {
+    //   provider = window.ethereum
+    //   try {
+    //     await provider.enable()
+    //   } catch (error) {
+    //     console.log('User denied accounts access!')
+    //   }
+    // }
+    // else if(window.web3) {
+    //   provider = window.web3.currentProvider
+    // }
+    // else if(!process.env.production) {
+    //   provider = new Web3.providers.HttpProvider("http://localhost:3001")
+    // }
+    // setWeb3Api({
+    //   web3: new Web3(provider),
+    //   provider
+    // })
+  }
+  const handleGetAccount = async () => {
+    const account = await web3Api.web3.eth.getAccounts()
+    console.log(account)
+    // connect metamask
+    const result = await web3Api.provider.request({
+      method: "eth_requestAccounts",
+    });
+    console.log(result)
+  }
+  const handleGetBalance = async () => {
+    const balance = await web3Api.web3.eth.getBalance(defaultAccount)
+    console.log(web3Api.web3.utils.fromWei(balance, "ether"))
+  }
+  const handleAddFunds = async () => {
+    const contract = await new web3Api.web3.eth.Contract(contract2, '0x63b51efd87c47415aa3efaf46331ce71fa831390')
+    console.log(contract)
+    await contract.methods.addFunds({
+      from: defaultAccount,
+      value: web3Api.web3.utils.toWei("1", "ether")
+    })
+  }
   useEffect(() => {
+    handleTestWeb3()
+    handleTestWeb3VS2()
+    handleTestWeb3VS3()
     checkIfWalletIsConnected();
   }, []);
   return (
@@ -197,6 +294,17 @@ const SimpleStorage = () => {
       </div>
       <button onClick={handleChangeTransaction}> Send transaction </button>
       <button onClick={handleChangeTransaction2}> Send transaction2 </button>
+      <button onClick={handleGetAccount}> Get account </button>
+      <button onClick={handleGetBalance}> Get balance </button>
+      <button onClick={handleAddFunds}> Add funds </button>
+      {
+        web3Api.isProviderLoaded ? 'AAAA' : 'Looking for Web3...'
+      }
+      {
+        !web3Api.provider ? <div>
+          Wallet is not detected <a>Install metamask</a>
+        </div> : 'connect wallet'
+      }
       {currentContractVal}
       {errorMessage}
     </div>
